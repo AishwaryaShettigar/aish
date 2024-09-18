@@ -1,0 +1,561 @@
+BACKEND 
+
+-->controller
+
+package com.restaurant.controller;
+
+import java.util.List;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.restaurant.pojo.ContactForm;
+import com.restaurant.service.ContactFormService;
+
+@RestController
+@CrossOrigin(origins = "http://localhost:4200/")
+@RequestMapping("/contact-form")
+public class ContactFormController {
+	@Autowired
+	ContactFormService contactFormService;
+	
+	@PostMapping("")
+	public String submitForm(@RequestBody ContactForm contactForm) {
+		if(contactFormService.submitForm(contactForm)!=null)
+			return "Your Query has been submitted successfully! We'll get back to you soon";
+		return "Oops, something went wrong! Please Try again!";
+	}
+	@GetMapping("")
+	public List<ContactForm> getAllForms(){
+		return contactFormService.getAllForms();
+	}
+	@DeleteMapping("/{contactFormId}")
+	public String queryCleared(@PathVariable Long contactFormId) {
+		contactFormService.deleteForm(contactFormId);
+		return "done";
+	}
+}
+
+
+
+-->pojo
+
+package com.restaurant.pojo;
+
+import javax.persistence.Entity;
+import javax.persistence.GeneratedValue;
+import javax.persistence.GenerationType;
+import javax.persistence.Id;
+
+import lombok.Data;
+
+@Entity
+@Data
+public class ContactForm {
+
+	@Id
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private long contactFormId;
+	private String name;
+	private String email;
+	private String subject;
+	private String message;
+	public long getContactFormId() {
+		return contactFormId;
+	}
+	public void setContactFormId(long contactFormId) {
+		this.contactFormId = contactFormId;
+	}
+	public String getName() {
+		return name;
+	}
+	public void setName(String name) {
+		this.name = name;
+	}
+	public String getEmail() {
+		return email;
+	}
+	public void setEmail(String email) {
+		this.email = email;
+	}
+	public String getSubject() {
+		return subject;
+	}
+	public void setSubject(String subject) {
+		this.subject = subject;
+	}
+	public String getMessage() {
+		return message;
+	}
+	public void setMessage(String message) {
+		this.message = message;
+	}
+	
+}
+
+
+
+--> repo
+
+package com.restaurant.repo;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import com.restaurant.pojo.ContactForm;
+
+public interface ContactFormRepo extends JpaRepository<ContactForm, Long> {
+
+}
+
+
+
+--> test
+
+package com.restaurant;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import com.restaurant.pojo.ContactForm;
+import com.restaurant.repo.ContactFormRepo;
+import com.restaurant.service.ContactFormService;
+
+@ExtendWith(MockitoExtension.class)
+public class ContactFormServiceTest {
+
+    @InjectMocks
+    private ContactFormService contactFormService;
+
+    @Mock
+    private ContactFormRepo contactFormRepo;
+
+    @Test
+    public void testSubmitForm() {
+        ContactForm contactForm = new ContactForm();
+        contactForm.setName("John");
+        contactForm.setEmail("john@example.com");
+        contactForm.setSubject("Inquiry");
+        contactForm.setMessage("Hello, I have a question.");
+
+        when(contactFormRepo.save(contactForm)).thenReturn(contactForm);
+
+        ContactForm submittedForm = contactFormService.submitForm(contactForm);
+
+        assertEquals(contactForm, submittedForm);
+        verify(contactFormRepo).save(contactForm);
+    }
+
+    @Test
+    public void testGetAllForms() {
+        List<ContactForm> forms = new ArrayList<>();
+        ContactForm form1 = new ContactForm();
+        form1.setName("Alice");
+        ContactForm form2 = new ContactForm();
+        form2.setName("Bob");
+        forms.add(form1);
+        forms.add(form2);
+
+        when(contactFormRepo.findAll()).thenReturn(forms);
+
+        List<ContactForm> retrievedForms = contactFormService.getAllForms();
+
+        assertEquals(forms, retrievedForms);
+    }
+
+    @Test
+    public void testDeleteForm() {
+        Long formId = 1L;
+
+        contactFormService.deleteForm(formId);
+
+        verify(contactFormRepo).deleteById(formId);
+    }
+}
+
+
+--> service 
+
+package com.restaurant.service;
+
+import java.util.List;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import com.restaurant.pojo.ContactForm;
+import com.restaurant.repo.ContactFormRepo;
+
+@Service
+public class ContactFormService {
+
+	@Autowired
+	ContactFormRepo contactFormRepo;
+
+	public ContactForm submitForm(ContactForm contactForm) {
+		return contactFormRepo.save(contactForm);
+	}
+	public List<ContactForm> getAllForms(){
+		return contactFormRepo.findAll();
+	}
+	public void deleteForm(Long contactFormId) {
+		contactFormRepo.deleteById(contactFormId);
+	}
+}
+
+
+--> application properties
+
+
+#server
+server.port=8084
+#================================================================
+#Jpa hibernate 
+spring.jpa.hibernate.ddl-auto=update
+spring.jpa.hibernate.dialect=org.hibernate.dialect.MySQLDialect
+spring.jpa.show-sql = true
+#================================================================
+#datasource 
+spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver
+spring.datasource.url=jdbc:mysql://localhost:3306/foodbox
+spring.datasource.username=root
+spring.datasource.password=Password@12
+#================================================================
+
+
+
+			FRONTEND 
+
+--> html
+
+<div class="container-xxl py-5">
+    <div class="container">
+        <div class="text-center wow fadeInUp" data-wow-delay="0.1s">
+            <h5 class="section-title ff-secondary text-center text-primary fw-normal">Contact Us</h5>
+            <h1 class="mb-5">Any Query? Feel free to drop a message</h1>
+        </div>
+        <div class="row g-4">
+            <div class="col-12">
+                <div class="row gy-4">
+                    <div class="col-md-4">
+                        <h5 class="section-title ff-secondary fw-normal text-start text-primary">Booking</h5>
+                        <p><i class="fa fa-envelope-open text-primary me-2"></i>book@foodbox.com</p>
+                    </div>
+                    <div class="col-md-4">
+                        <h5 class="section-title ff-secondary fw-normal text-start text-primary">General</h5>
+                        <p><i class="fa fa-envelope-open text-primary me-2"></i>info@foodbox.com</p>
+                    </div>
+                    <div class="col-md-4">
+                        <h5 class="section-title ff-secondary fw-normal text-start text-primary">Technical</h5>
+                        <p><i class="fa fa-envelope-open text-primary me-2"></i>tech@foodbox.com</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 wow fadeIn" data-wow-delay="0.1s">
+                <iframe class="position-relative rounded w-100 h-100"
+                    src="https://maps.google.com/maps?q=L 147, 5th Main Rd, Sector 6, HSR Layout, Bengaluru, Karnataka 560102&t=&z=12&ie=UTF8&iwloc=&output=embed"
+                    frameborder="0" style="min-height: 350px; border:0;" allowfullscreen="" aria-hidden="false"
+                    tabindex="0"></iframe>
+            </div>
+            <div class="col-md-6">
+                <div class="wow fadeInUp" data-wow-delay="0.2s">
+                  <form [formGroup]="contactForm" (ngSubmit)="submitForm()">
+                    <div class="row g-3">
+                      <div class="col-md-6">
+                        <div class="form-floating">
+                          <input type="text" class="form-control" id="name" placeholder="Your Name" formControlName="name">
+                          <label for="name">Your Name</label>
+                          <div *ngIf="contactForm.get('name')?.hasError('required') && contactForm.get('name')?.touched"
+                            class="text-danger">
+                            Name is required.
+                          </div>
+                        </div>
+                      </div>
+                      <div class="col-md-6">
+                        <div class="form-floating">
+                          <input type="email" class="form-control" id="email" placeholder="Your Email" formControlName="email">
+                          <label for="email">Your Email</label>
+                          <div
+                            *ngIf="contactForm.get('email')?.hasError('required') && contactForm.get('email')?.touched"
+                            class="text-danger">
+                            Email is required.
+                          </div>
+                          <div *ngIf="contactForm.get('email')?.hasError('email') && contactForm.get('email')?.touched"
+                            class="text-danger">
+                            Invalid email format.
+                          </div>
+                        </div>
+                      </div>
+                      <div class="col-12">
+                        <div class="form-floating">
+                          <input type="text" class="form-control" id="subject" placeholder="Subject" formControlName="subject">
+                          <label for="subject">Subject</label>
+                          <div *ngIf="contactForm.get('subject')?.hasError('required') && contactForm.get('subject')?.touched"
+                            class="text-danger">
+                            Subject is required.
+                          </div>
+                        </div>
+                      </div>
+                      <div class="col-12">
+                        <div class="form-floating">
+                          <textarea class="form-control" placeholder="Leave a message here" id="message"
+                            style="height: 150px" formControlName="message"></textarea>
+                          <label for="message">Message</label>
+                          <div *ngIf="contactForm.get('message')?.hasError('required') && contactForm.get('message')?.touched"
+                            class="text-danger">
+                            Message is required.
+                          </div>
+                        </div>
+                      </div>
+                      <div class="col-12">
+                        <button class="btn btn-primary w-100 py-3" type="submit" [disabled]="!contactForm.valid">
+                          Send Message
+                        </button>
+                      </div>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+          </div>
+
+
+
+--> spec.ts
+
+import { ComponentFixture, TestBed } from '@angular/core/testing';
+
+import { ContactusComponent } from './contactus.component';
+
+describe('ContactusComponent', () => {
+  let component: ContactusComponent;
+  let fixture: ComponentFixture<ContactusComponent>;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({
+      declarations: [ContactusComponent]
+    });
+    fixture = TestBed.createComponent(ContactusComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+  });
+
+  it('should create', () => {
+    expect(component).toBeTruthy();
+  });
+});
+
+
+
+--> component.ts
+
+import { Component, OnInit } from '@angular/core';
+import { FoodBoxService } from '../food-box.service';
+import { FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { HttpClient } from '@angular/common/http';
+
+@Component({
+  selector: 'app-contact',
+  templateUrl: './contactus.component.html',
+  styleUrls: ['./contactus.component.css']
+})
+export class ContactusComponent implements OnInit {
+  contactForm: FormGroup;
+
+  constructor(private formBuilder: FormBuilder, private service: FoodBoxService) {}
+
+  ngOnInit(): void {
+    this.initForm();
+  }
+
+  initForm(): void {
+    this.contactForm = this.formBuilder.group({
+      name: ['', [Validators.required]],
+      email: ['', [Validators.required, Validators.email]],
+      subject: ['', [Validators.required]],
+      message: ['', [Validators.required]]
+    });
+  }
+  submitForm(): void {
+    if (this.contactForm.valid) {
+      const formData = this.contactForm.value;
+      this.service.submitContactForm(formData).subscribe(
+        (response)=>{
+          alert(response);
+          this.ngOnInit();
+        }
+      )
+    }
+  }
+}
+
+
+
+--> foodboxservice.ts
+
+
+import { HttpClient, HttpErrorResponse, HttpHeaders } from '@angular/common/http';
+import { Injectable, OnInit } from '@angular/core';
+import { CartItem } from './model-classes/cart-item.model';
+import { Observable, catchError, throwError } from 'rxjs';
+import { FoodItem } from './model-classes/food-item.model';
+import { Category } from './model-classes/category.model';
+import { Admin } from './model-classes/admin.model';
+import { User } from './model-classes/user.model';
+import { OrderDetails } from './model-classes/order-details.model';
+const httpOptions = {
+  headers: new HttpHeaders({ 'Content-Type': 'application/json' })
+  };
+@Injectable({
+  providedIn: 'root'
+})
+export class FoodBoxService implements OnInit{
+
+   private baseUrl = "http://localhost:8084";
+ 
+  constructor(private http: HttpClient) { }
+  ngOnInit(): void {
+  }
+  
+    
+  
+  getCartItems(userId:number): Observable<CartItem[]> {
+    return this.http.get<CartItem[]>(`${this.baseUrl}/cart/${userId}`);
+  }
+
+  getFoodItems(): Observable<FoodItem[]> {
+    return this.http.get<FoodItem[]>(`${this.baseUrl}/foodItems`);
+  }
+  getFoodItemsByCategory(categoryId: number): Observable<FoodItem[]> {
+    return this.http.get<FoodItem[]>(`${this.baseUrl}/foodItems/${categoryId}`);;
+  }
+  addFoodItem(categoryId: number, newFoodItem: FoodItem) {
+    return this.http.post(`${this.baseUrl}/foodItems/${categoryId}`, newFoodItem, { responseType: 'text' });
+  }
+  editFoodItem(foodItem: FoodItem): Observable<string> {
+    return this.http.put(`${this.baseUrl}/foodItems`, foodItem, { responseType: 'text' });
+  }
+  deleteFoodItem(foodItemId: number): Observable<string> {
+    return this.http.delete(`${this.baseUrl}/foodItems/delete/${foodItemId}`, { responseType: 'text' });;
+  }
+  getCategories(): Observable<Category[]> {
+    return this.http.get<Category[]>(`${this.baseUrl}/category`);
+  }
+  getCategoryById(categoryId: number): Observable<Category> {
+    return this.http.get<Category>(`${this.baseUrl}/category/${categoryId}`);
+  }
+  addCategory(categoryName: string): Observable<string> {
+    return this.http.post(`${this.baseUrl}/category/add/${categoryName}`, null, { responseType: 'text' });
+  }
+  deleteCategory(categoryId: number): Observable<string> {
+    return this.http.delete(`${this.baseUrl}/category/delete/${categoryId}`, { responseType: 'text' });
+  }
+
+  addToCart(foodItemId: number, quantity: number,userId:number): Observable<string> {
+    console.log(foodItemId,quantity,userId);
+    
+    return this.http.post(`${this.baseUrl}/cart/add?userId=${userId}&foodItemId=${foodItemId}&quantity=${quantity}`, null, { responseType: 'text' });
+  }
+  updateCartItemQuantity(cartItem: CartItem, newQuantity: number): Observable<string> {
+    console.log(cartItem.cartItemId, newQuantity);    
+    return this.http.put(`${this.baseUrl}/cart/update/${cartItem.cartItemId}/${newQuantity}`, null, { responseType: 'text' });
+  }
+
+  removeFromCart(cartItem: CartItem): Observable<string> {
+    return this.http.delete(`${this.baseUrl}/cart/deleteFromCartOnly/${cartItem.cartItemId}`, { responseType: 'text' })
+  }
+
+
+  registerAdmin(admin: any): Observable<string> {
+    return this.http.post(`${this.baseUrl}/admin/register`, admin, { responseType: 'text' });
+  }
+
+  loginAdmin(adminCreds: any): Observable<string> {
+    return this.http.post(`${this.baseUrl}/admin/login`, adminCreds, { responseType: 'text' });
+  }
+  getAdminByEmployeeId(adminEmployeeId:string):Observable<Admin>{
+    return this.http.get<Admin>(`${this.baseUrl}/admin/employeeId/${adminEmployeeId}`);
+  }
+  updateAdmin(admin:Admin):Observable<string>{
+    return this.http.put(`${this.baseUrl}/admin/update`, admin, { responseType: 'text' });
+  }
+
+  registerUser(user: any): Observable<string> {
+    return this.http.post(`${this.baseUrl}/user/register`, user, { responseType: 'text' });
+  }
+
+  loginUser(userCreds: any): Observable<string> {
+    return this.http.post(`${this.baseUrl}/user/login`, userCreds, { responseType: 'text' });
+  }
+  getUserByEmail(userEmail:string):Observable<User>{
+    return this.http.get<User>(`${this.baseUrl}/user/email/${userEmail}`);
+  }
+  updateUser(user:User):Observable<string>{
+    return this.http.put
+    (`${this.baseUrl}/user/update`, user, { responseType: 'text' });
+  }
+
+  createOrder(order: any): Observable<any> {
+	  return this.http.post(`${this.baseUrl}/order/createOrder`, order, httpOptions)
+		.pipe(
+		  catchError(this.handleError)
+		);
+	}
+  private handleError(error: HttpErrorResponse) {
+	  console.error('Error creating order:', error);
+	  return throwError('An error occurred while creating the order. Please try again later.');
+	}
+  getPaymentIdForCod():Observable<string> {
+    return this.http.get(`${this.baseUrl}/order/idForCod`,{ responseType: 'text' });
+  }
+  getOrderDetailsByPaymentId(paymentId: string):Observable<OrderDetails> {
+    return this.http.get<OrderDetails>(`${this.baseUrl}/order/paymentId/${paymentId}`);
+  }
+  getOrderDetails(orderId:number):Observable<OrderDetails> {
+    return this.http.get<OrderDetails>(`${this.baseUrl}/order/orderId/${orderId}`);
+  }
+  deleteCart(userId: number):Observable<string> {
+    return this.http.delete(`${this.baseUrl}/cart/deleteCart/${userId}`, { responseType: 'text' })
+  }
+
+  addReview(value: any):Observable<any>{
+    return this.http.post<any>(`${this.baseUrl}/review`,value);
+  }
+  getReviews():Observable<any> {
+    return this.http.get<any>(`${this.baseUrl}/review`);
+  }
+  submitContactForm(formData: any):Observable<string> {
+    console.log(formData);
+    
+    return this.http.post(`${this.baseUrl}/contact-form`, formData, { responseType: 'text' });
+  }
+  getOrders():Observable<OrderDetails[]> {
+    return this.http.get<OrderDetails[]>(`${this.baseUrl}/order`);
+  }
+  getContactFormQueries():Observable<any>{
+    return this.http.get<any>(`${this.baseUrl}/contact-form`);
+  }
+  removeQuery(queryId: number) :Observable<string>{
+    return this.http.delete(`${this.baseUrl}/contact-form/${queryId}`, { responseType: 'text' });
+  }
+}
+
+
+
+
