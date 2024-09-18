@@ -1,0 +1,507 @@
+                                            BACKEND 
+
+
+-->controller 
+
+package com.restaurant.controller;
+
+import java.util.List;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.restaurant.pojo.Category;
+import com.restaurant.service.AdminService;
+import com.restaurant.service.CartService;
+import com.restaurant.service.CategoryService;
+import com.restaurant.service.FoodItemService;
+
+@RestController
+@CrossOrigin(origins = "http://localhost:4200/")
+@RequestMapping("/category")
+public class CategoryController {
+	@Autowired
+	CartService cartService;
+	@Autowired
+	AdminService adminService;
+	@Autowired
+	CategoryService categoryService;
+	@Autowired
+	FoodItemService foodItemService;
+Category Controller.java
+	
+	@PostMapping("/add/{categoryName}")
+	public String addCategory(@PathVariable String categoryName) {
+		Category testCategory=categoryService.getCategoryByName(categoryName);
+		if(testCategory!=null)
+			return "0";
+		else {
+			
+			Category category=new Category();
+			category.setName(categoryName);
+			categoryService.addCategory(category);
+			return "1";
+		}
+	}
+	@GetMapping("")
+	public List<Category> getCategories(){
+		return categoryService.getCategories();
+	}
+	@GetMapping("/{categoryId}")
+	public Category getCategoryById(@PathVariable Long categoryId){
+		return categoryService.getCategoryById(categoryId);
+	}
+	@DeleteMapping("/delete/{categoryId}")
+	public String deleteCategory(@PathVariable Long categoryId) {
+		
+		cartService.deleteFromCartByFoodItems(foodItemService.getFoodItemsByCategoryId(categoryId) );
+		categoryService.deleteCategoryById(categoryId);
+		return "done";
+	}
+}
+
+
+
+
+-->pojo
+
+
+package com.restaurant.pojo;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import javax.persistence.CascadeType;
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.GeneratedValue;
+import javax.persistence.GenerationType;
+import javax.persistence.Id;
+import javax.persistence.OneToMany;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
+import lombok.Data;
+
+@Entity
+@Data 
+public class Category {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long categoryId;
+    @Column(unique = true)
+    private String name;
+    @JsonIgnore
+    @OneToMany(mappedBy = "category", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<FoodItem> foodItems = new ArrayList<>();
+	public Long getCategoryId() {
+		return categoryId;
+	}
+	public void setCategoryId(Long categoryId) {
+		this.categoryId = categoryId;
+	}
+	public String getName() {
+		return name;
+	}
+	public void setName(String name) {
+		this.name = name;
+	}
+	public List<FoodItem> getFoodItems() {
+		return foodItems;
+	}
+	public void setFoodItems(List<FoodItem> foodItems) {
+		this.foodItems = foodItems;
+	}
+    
+}
+
+
+
+-->repo
+
+package com.restaurant.repo;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import com.restaurant.pojo.Category;
+
+public interface CategoryRepo extends JpaRepository<Category, Long > {
+
+	public Category findByName(String categoryName);
+
+}
+
+
+categoryservice.java
+
+package com.restaurant.service;
+
+import java.util.List;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import com.restaurant.pojo.Category;
+import com.restaurant.repo.CartRepo;
+import com.restaurant.repo.CategoryRepo;
+import com.restaurant.repo.FoodItemRepo;
+
+@Service
+public class CategoryService {
+	@Autowired
+	FoodItemRepo foodItemRepo;
+	@Autowired
+	CategoryRepo categoryRepo;
+	@Autowired
+	CartRepo cartRepo;
+	public List<Category> getCategories() {
+		return categoryRepo.findAll();
+	}
+	public Category getCategoryByName(String categoryName) {
+		return categoryRepo.findByName(categoryName);
+	}
+	public void addCategory(Category category) {
+		categoryRepo.save(category);
+	}
+	public void deleteCategoryById(Long categoryId) {
+		categoryRepo.deleteById(categoryId);
+		
+	}
+	public Category getCategoryById(Long categoryId) {
+		return categoryRepo.findById(categoryId).orElse(null);
+	}
+}
+
+-->test
+
+package com.restaurant;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import com.restaurant.pojo.Category;
+import com.restaurant.repo.CategoryRepo;
+import com.restaurant.service.CategoryService;
+
+@ExtendWith(MockitoExtension.class)
+public class CategoryServiceTest {
+
+    @Mock
+    private CategoryRepo categoryRepo;
+
+    @InjectMocks
+    private CategoryService categoryService;
+
+    @Test
+    public void testGetCategories() {
+        List<Category> expectedCategories = new ArrayList<>();
+        when(categoryRepo.findAll()).thenReturn(expectedCategories);
+
+        List<Category> result = categoryService.getCategories();
+
+        assertEquals(expectedCategories, result);
+        verify(categoryRepo, times(1)).findAll();
+    }
+
+    @Test
+    public void testGetCategoryByName() {
+        String categoryName = "Test Category";
+        Category expectedCategory = new Category();
+        when(categoryRepo.findByName(categoryName)).thenReturn(expectedCategory);
+
+        Category result = categoryService.getCategoryByName(categoryName);
+
+        assertEquals(expectedCategory, result);
+        verify(categoryRepo, times(1)).findByName(categoryName);
+    }
+
+    @Test
+    public void testAddCategory() {
+        Category categoryToAdd = new Category();
+
+        categoryService.addCategory(categoryToAdd);
+
+        verify(categoryRepo, times(1)).save(categoryToAdd);
+    }
+
+    @Test
+    public void testDeleteCategoryById() {
+        Long categoryIdToDelete = 1L;
+
+        categoryService.deleteCategoryById(categoryIdToDelete);
+
+        verify(categoryRepo, times(1)).deleteById(categoryIdToDelete);
+    }
+
+    @Test
+    public void testGetCategoryById() {
+        Long categoryId = 1L;
+        Category expectedCategory = new Category();
+        when(categoryRepo.findById(categoryId)).thenReturn(Optional.of(expectedCategory));
+
+        Category result = categoryService.getCategoryById(categoryId);
+
+        assertEquals(expectedCategory, result);
+        verify(categoryRepo, times(1)).findById(categoryId);
+    }
+}
+
+
+
+
+
+                                               FRONTEND 
+--> css
+
+.container {
+    margin-top: 20px;
+    background-color: #fff;
+    border-radius: 10px;
+    padding: 20px;
+    box-shadow: 0px 2px 10px rgba(0, 0, 0, 0.1);
+  }
+  
+  h2, h4 {
+    font-weight: bold;
+    margin-bottom: 10px;
+  }
+  
+  hr {
+    margin: 20px 0;
+  }
+  
+  .table {
+    margin-top: 20px;
+  }
+  
+  .btn {
+    margin-right: 5px;
+  }
+  
+  
+  .material-icons {
+    font-size: 16px;
+    vertical-align: middle;
+  }
+
+
+
+
+-->html
+
+<div class="container">
+  <h2 style="color: tomato;">Cuisine Management</h2>
+  <div class="row">
+    <div class="col-md-6">
+      <h4 style="color: #008000;">Add New Cuisine</h4>
+      <div class="input-group mb-3">
+        <input type="text" class="form-control" [(ngModel)]="newCategoryName" placeholder="Enter cuisine name">
+        <button class="btn btn-success" type="button" (click)="addCategory(newCategoryName)">
+          <i class="material-icons">add</i> Add
+        </button>
+      </div>
+    </div>
+  </div>
+  <hr style="border-color: #008000;">
+  <h4 style="color: #008000;">Cuisine List</h4>
+  <div class="table-responsive">
+    <table class="table table-bordered">
+      <thead>
+        <tr>
+          <th>Cuisine Name</th>
+          <th class="text-end">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let category of categories">
+          <td>{{ category.name }}</td>
+          <td class="text-end">
+            <button class="btn btn-primary btn-sm" (click)="manageFoodItems(category.categoryId)">
+              <i class="material-icons">restaurant_menu</i> Manage Food Items
+            </button>
+            <button class="btn btn-danger btn-sm" (click)="deleteCategory(category.categoryId)">
+              <i class="material-icons">delete</i> Delete
+            </button>
+            
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+
+
+--> spec.ts
+
+import { ComponentFixture, TestBed } from '@angular/core/testing';
+
+import { CategoryManagementComponent } from './category-management.component';
+
+describe('CategoryManagementComponent', () => {
+  let component: CategoryManagementComponent;
+  let fixture: ComponentFixture<CategoryManagementComponent>;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({
+      declarations: [CategoryManagementComponent]
+    });
+    fixture = TestBed.createComponent(CategoryManagementComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+  });
+
+  it('should create', () => {
+    expect(component).toBeTruthy();
+  });
+});
+
+
+
+
+--> component.ts
+
+import { Component, OnInit } from '@angular/core';
+import { FoodBoxService } from '../food-box.service';
+import { Router } from '@angular/router';
+import { Category } from '../model-classes/category.model';
+
+@Component({
+  selector: 'app-category-management',
+  templateUrl: './category-management.component.html',
+  styleUrls: ['./category-management.component.css']
+})
+export class CategoryManagementComponent implements OnInit{
+  categories: Category[]=[];
+  newCategoryName='';
+  constructor(private service:FoodBoxService, private router:Router){}
+
+  ngOnInit(): void {
+    this.getCategories();
+  }
+  getCategories():void{
+    this.service.getCategories().subscribe(
+      categories=>{
+        this.categories=categories;
+        console.log(categories);
+        
+      }
+    )
+  }
+  addCategory(newCategoryName:string):void{
+    this.service.addCategory(newCategoryName).subscribe(
+      response=>{
+        if(response=='0'){
+          alert("Category already exists!");
+        }
+      else{
+        this.ngOnInit();
+      }
+      }
+    )
+  }
+  deleteCategory(categoryId:number):void{
+    this.service.deleteCategory(categoryId).subscribe(
+      response=>{
+        this.ngOnInit();
+        }
+    )
+  }
+  manageFoodItems(categoryId:number):void{
+    this.router.navigate(['/category', categoryId, 'food-items']);
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+application properties
+
+#server
+server.port=8084
+#================================================================
+#Jpa hibernate 
+spring.jpa.hibernate.ddl-auto=update
+spring.jpa.hibernate.dialect=org.hibernate.dialect.MySQLDialect
+spring.jpa.show-sql = true
+#================================================================
+#datasource 
+spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver
+spring.datasource.url=jdbc:mysql://localhost:3306/foodbox
+spring.datasource.username=root
+spring.datasource.password=Password@12
+#================================================================
+
